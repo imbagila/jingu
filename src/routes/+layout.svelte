@@ -1,6 +1,6 @@
 <script>
 	import "../app.css";
-	import Nav from './Nav.svelte';
+	import Nav from './Header.svelte';
 	import Sidebar from './Sidebar.svelte';
 	import './styles.css';
 </script>
@@ -9,13 +9,11 @@
 	<Nav />
 	<Sidebar />
 
-	<main>
-		<slot />
+	<main class="p-4 sm:ml-64">
+		<div class="p-4 dark:border-gray-700 mt-14">
+			<slot />
+		</div>
 	</main>
-
-	<footer>
-		<p>visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to learn SvelteKit</p>
-	</footer>
 </div>
 
 <style lang="postcss">
