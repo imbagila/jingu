@@ -1,0 +1,139 @@
+version: '3.9'
+
+x-bootstrap: &bootstrap
+  command: kong migrations bootstrap
+  container_name: jingu-kong-bootstrap
+  depends_on:
+    postgres:
+      condition: service_healthy
+  environment: &env-bootstrap
+    KONG_DATABASE: postgres
+    KONG_PG_HOST: jingu-postgres
+    KONG_PG_USER: kong
+    KONG_PG_PASSWORD: kong
+    KONG_PG_DATABASE: kong
+  image: kong:alpine
+  networks:
+    jingu:
+
+x-kong: &kong
+  container_name: jingu-kong
+  environment: &env-kong
+    KONG_DATABASE: postgres
+    KONG_PG_HOST: jingu-postgres
+    KONG_PG_USER: kong
+    KONG_PG_PASSWORD: kong
+    KONG_PG_DATABASE: kong
+    KONG_PROXY_ACCESS_LOG: /dev/stdout
+    KONG_ADMIN_ACCESS_LOG: /dev/stdout
+    KONG_PROXY_ERROR_LOG: /dev/stderr
+    KONG_ADMIN_ERROR_LOG: /dev/stderr
+    KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+  expose:
+    - 8000
+    - 8001
+    - 8443
+    - 8444
+  image: kong:alpine
+  networks:
+    jingu:
+
+services:
+  # postgres
+  postgres:
+    container_name: jingu-postgres
+    environment:
+      - POSTGRES_DB=kong-v3.1
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=kong
+    expose:
+      - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U kong -d kong-v3.1'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    image: postgres:15.2-alpine3.17
+    networks:
+      jingu:
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # bootstraps
+  kong-v3.1-bootstrap:
+    <<: *bootstrap
+    container_name: jingu-kong-v3.1-bootstrap
+    environment:
+      <<: *env-bootstrap
+      KONG_PG_DATABASE: kong-v3.1
+    image: kong:3.1.1-alpine
+  kong-v3.0-bootstrap:
+    <<: *bootstrap
+    container_name: jingu-kong-v3.0-bootstrap
+    environment:
+      <<: *env-bootstrap
+      KONG_PG_DATABASE: kong-v3.0
+    image: kong:3.0.2-alpine
+  kong-v2.8-bootstrap:
+    <<: *bootstrap
+    container_name: jingu-kong-v2.8-bootstrap
+    environment:
+      <<: *env-bootstrap
+      KONG_PG_DATABASE: kong-v2.8
+    image: kong:2.8.3-alpine
+  
+  # kongs
+  kong-v3.1:
+    <<: *kong
+    container_name: jingu-kong-v3.1
+    depends_on:
+      kong-v3.1-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      <<: *env-kong
+      KONG_PG_DATABASE: kong-v3.1
+    image: kong:3.1.1-alpine
+    ports:
+      - 9310:8000
+      - 9311:8001
+      - 9313:8443
+      - 9314:8444
+  kong-v3.0:
+    <<: *kong
+    container_name: jingu-kong-v3.0
+    depends_on:
+      kong-v3.0-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      <<: *env-kong
+      KONG_PG_DATABASE: kong-v3.0
+    image: kong:3.0.2-alpine
+    ports:
+      - 9300:8000
+      - 9301:8001
+      - 9303:8443
+      - 9304:8444
+  kong-v2.8:
+    <<: *kong
+    container_name: jingu-kong-v2.8
+    depends_on:
+      kong-v2.8-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      <<: *env-kong
+      KONG_PG_DATABASE: kong-v2.8
+    image: kong:2.8.3-alpine
+    ports:
+      - 9280:8000
+      - 9281:8001
+      - 9283:8443
+      - 9284:8444
+
+volumes:
+  postgres:
+    name: jingu-postgres
+
+networks:
+  jingu:
+    name: jingu
