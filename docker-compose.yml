@@ -53,7 +53,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-    image: postgres:15.2-alpine3.17
+    image: postgres:13.10-alpine3.17
     networks:
       jingu:
     volumes:
